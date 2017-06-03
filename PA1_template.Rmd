@@ -1,25 +1,117 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "PA1_template"
+author: "Aditi Mahendroo"
+date: "5/28/2017"
+output: html_document
 ---
+##Installing and opening the packages
+```{r, echo=TRUE}
+#install.packages("knitr")
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE, cache=TRUE)
+```
+
+##Read in the data
+```{r}
+data <- read.csv("activity.csv", header = TRUE)
+```
+
+Change the format of the date
+```{r}
+data$date <- as.Date(data$date, format = "%Y-%m-%d")
+```
+
+Sum the total number of steps taken per day
+```{r} 
+TotalDailySteps <- aggregate(data$steps, by=list(data$date), FUN="sum")
+#install.packages("ggplot2")
+library(ggplot2)
+```
+
+Update the column names and then lot the day
+```{r} 
+colnames(TotalDailySteps) <- c("Date", "Total_Steps")
+ggplot(TotalDailySteps, aes(x=Total_Steps)) + geom_histogram(binwidth=500,fill="blue") + labs(title = "Total Number of Daily Steps", xlab= "Total Daily Steps", ylab = "Frequency")
+```
+
+Calculate the mean and the median. The mean is 10766 and the median is 10765.
+``` {r}
+mean_steps <- mean(TotalDailySteps$Total_Steps, na.rm = TRUE)
+median_steps <- median(TotalDailySteps$Total_Steps, na.rm = TRUE)
+```
+
+What is the average daily acitivity pattern? Remove the NAs from data and store in a new variable.
+```{r}
+data_NArem <- data[!is.na(data$steps), ]
+```
+
+Average the number of steps
+```{r} 
+avg_steps <- aggregate(data_NArem$steps, by=list(data_NArem$interval), FUN="mean")
+```
+
+Rename the column names
+```{r} 
+colnames(avg_steps) <- c("Interval", "Mean")
+```
+
+Make a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+``` {r}
+
+ggplot(avg_steps, aes(x= Interval, y=Mean)) + geom_line(color = "red") + 
+  labs(title = "Average Steps", x = "5 Minute Interval", y = "Average Across All Days")
+```
+
+Which 5 - minute interval, on average across all the days in the dataset, contains the maxium number of steps?
+```{r} 
+max_steps_line <- which.max(avg_steps[, 2])
+max_steps <- avg_steps[104,2]
+```
+
+Imputting missing values. Calculate and report the total number of missing values in the dataset (i.e. the total numner of rows with NAs). The number of missing values is 2304 (will be able to view once the variable has been printed)
+```{r}
+missing_values <- sum(is.na(data$steps))
+missing_values
+```
+
+Devise a strategy for filling in the missing values in the dataset
+```{r} 
+#install.packages("plyr")
+#install.packages("Hmisc")
+library(plyr)
+library(Hmisc)
+imputeddata <- data
+imputeddata$steps <- impute(data$steps, fun=mean) 
+na_check <- sum(is.na(imputeddata$steps)) 
+na_check
+```
+
+Update the column names and then lot the day
+``` {r} 
+TotalImputed_DailySteps <-  aggregate(imputeddata$steps, by=list(imputeddata$date), FUN="sum")
+colnames(TotalImputed_DailySteps) <- c("Date", "Total_Steps")
+ggplot(TotalImputed_DailySteps, aes(x=Total_Steps)) + geom_histogram(binwidth=500,fill="blue") + labs(title = "Total Number of Daily Steps", xlab = "Total Steps per Day (Imputed)", ylab="Frequncy")
+```
+
+Calculate and report the mean and the mean of the total steps taken per day. The mean and the median values are 10766.
+```{r}
+mean_imputedstepsdata <- mean(TotalImputed_DailySteps$Total_Steps, na.rm = TRUE)
+median_imputedstepsdata <- median(TotalImputed_DailySteps$Total_Steps, na.rm = TRUE)
+```
 
 
-## Loading and preprocessing the data
+Are there differences in activitiey patterns between weekdays and weekends? Use the dataset with the filled-in missing values.
+```{r} 
+imputeddata$typeOfDay <- ifelse(weekdays(imputeddata$date) != "Saturday" & weekdays(imputeddata$date) != "Sunday", "Weekday", "Weekend")
+imputeddata$typeOfDay <- as.factor(imputeddata$typeOfDay)
+```
 
-
-
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
+Make a panel plot contaning a time serries plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekdays or days or weekend days (y-axis).
+```{r} 
+averages <- aggregate(steps ~ interval + typeOfDay, data = imputeddata, mean)
+ggplot(averages, aes(interval, steps)) + 
+  geom_line() + 
+  facet_grid(typeOfDay ~ .) +
+  xlab("Five Minute Interval") + 
+  ylab("Number of Steps")
+```
